@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Premium Access</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .container { background: #1a1a2e; padding: 40px; border-radius: 20px; max-width: 600px; width: 100%; border: 1px solid #333; }
+        h1 { text-align: center; color: #fff; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #888; margin-bottom: 30px; font-size: 14px; }
+        .subtitle a { color: #4ECDC4; text-decoration: none; }
+        .packs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+        .pack-card { background: #16213e; padding: 20px; border-radius: 15px; text-align: center; cursor: pointer; border: 2px solid #1a1a2e; transition: 0.3s; }
+        .pack-card:hover, .pack-card.selected { border-color: #667eea; background: #1a1a3e; }
+        .pack-card .emoji { font-size: 30px; }
+        .pack-card .name { color: #fff; font-weight: 600; margin: 5px 0; }
+        .pack-card .price { color: #4ECDC4; font-size: 20px; font-weight: 700; }
+        .pack-card .duration { color: #888; font-size: 12px; }
+        .pack-card .badge { display: inline-block; background: #FFD700; color: #000; font-size: 10px; font-weight: 700; padding: 2px 10px; border-radius: 10px; margin-top: 5px; }
+        .btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: 600; cursor: pointer; transition: 0.3s; }
+        .btn:hover { transform: scale(1.02); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .loader { display: none; text-align: center; padding: 20px; color: #888; }
+        .loader.show { display: block; }
+        .qr-container { display: none; text-align: center; padding: 20px; }
+        .qr-container.show { display: block; }
+        .qr-container img { max-width: 250px; margin: 10px auto; border-radius: 10px; background: #fff; padding: 10px; }
+        .order-id { background: #16213e; padding: 10px; border-radius: 8px; font-family: monospace; word-break: break-all; color: #4ECDC4; }
+        .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 14px; font-weight: 600; }
+        .badge-pending { background: #fff3cd; color: #856404; }
+        .badge-paid { background: #d4edda; color: #155724; }
+        .badge-expired { background: #f8d7da; color: #721c24; }
+        .chatid-section { display: none; margin-top: 20px; padding: 20px; background: #16213e; border-radius: 10px; }
+        .chatid-section.show { display: block; }
+        .chatid-section h4 { color: #fff; margin-bottom: 10px; }
+        .chatid-section p { color: #888; font-size: 14px; margin-bottom: 15px; }
+        .chatid-section input { width: 100%; padding: 12px; border: 2px solid #333; border-radius: 10px; background: #0a0a0a; color: #fff; font-size: 16px; margin-bottom: 10px; }
+        .chatid-section input:focus { border-color: #667eea; outline: none; }
+        .flash { padding: 12px; border-radius: 8px; margin: 10px 0; display: none; }
+        .flash.show { display: block; }
+        .flash.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .checkout-link { color: #667eea; word-break: break-all; display: block; margin: 10px 0; }
+        .join-reminder { background: #1a1a3e; padding: 10px; border-radius: 8px; margin: 10px 0; border: 1px solid #667eea; }
+        .join-reminder a { color: #4ECDC4; }
+        @media (max-width: 500px) { .packs-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💎 Premium Access</h1>
+        <p class="subtitle">🔒 Private Channel: <a href="{{ channel_link }}" target="_blank">{{ channel_link }}</a></p>
+        
+        <div id="flash" class="flash"></div>
+        
+        <form id="paymentForm">
+            <div class="packs-grid" id="packsGrid">
+                {% for key, pack in packs.items() %}
+                <div class="pack-card" data-pack="{{ key }}" data-price="{{ pack.price }}">
+                    <div class="emoji">{{ pack.emoji }}</div>
+                    <div class="name">{{ pack.name }}</div>
+                    <div class="price">₹{{ pack.price }}</div>
+                    <div class="duration">{% if pack.type == 'permanent' %}♾️ Permanent{% else %}{{ pack.days }} Days{% endif %}</div>
+                    {% if pack.type == 'permanent' %}<div class="badge">🔥 BEST</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            
+            <input type="hidden" name="pack" id="selectedPack" value="">
+            <input type="hidden" name="amount" id="selectedAmount" value="">
+            
+            <button type="submit" class="btn" id="payBtn">💳 Generate QR</button>
+        </form>
+        
+        <div class="loader" id="loader">
+            <div style="font-size:30px;">⏳</div>
+            <p>Creating order...</p>
+        </div>
+        
+        <div class="qr-container" id="qrContainer">
+            <h3 style="color:#fff;">📱 Scan QR to Pay</h3>
+            <img id="qrImage" src="" alt="QR Code">
+            <p style="color:#888;"><strong style="color:#fff;">Order ID:</strong> <span class="order-id" id="orderId"></span></p>
+            <p style="color:#888;">⏳ Expires: <span id="expiresAt"></span></p>
+            <a id="checkoutLink" href="#" target="_blank" class="checkout-link">🔗 Click here if QR doesn't work</a>
+            
+            <div style="margin-top:15px;">
+                <span class="status-badge badge-pending" id="statusBadge">⏳ PENDING</span>
+            </div>
+            
+            <div class="join-reminder">
+                ⚠️ <strong style="color:#fff;">Important:</strong> First <a href="{{ channel_link }}" target="_blank">join the private channel</a>, then proceed!
+            </div>
+            
+            <div class="chatid-section" id="chatidSection">
+                <h4>✅ Payment Successful!</h4>
+                <p>Enter your Telegram Chat ID to activate premium:</p>
+                <input type="text" id="chatIdInput" placeholder="Enter your Telegram Chat ID">
+                <button class="btn" id="submitChatBtn" style="padding:12px;">🚀 Activate Premium</button>
+                <div id="chatResult" style="margin-top:10px; color:#888;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentOrderId = null;
+        let checkInterval = null;
+        let selectedPack = null;
+        
+        document.querySelectorAll('.pack-card').forEach(card => {
+            card.addEventListener('click', function() {
+                document.querySelectorAll('.pack-card').forEach(c => c.classList.remove('selected'));
+                this.classList.add('selected');
+                selectedPack = this.dataset.pack;
+                document.getElementById('selectedPack').value = this.dataset.pack;
+                document.getElementById('selectedAmount').value = this.dataset.price;
+            });
+        });
+        
+        document.getElementById('paymentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!selectedPack) {
+                showFlash('error', '❌ Please select a pack first!');
+                return;
+            }
+            
+            const payBtn = document.getElementById('payBtn');
+            const loader = document.getElementById('loader');
+            
+            payBtn.disabled = true;
+            loader.classList.add('show');
+            document.getElementById('flash').classList.remove('show');
+            
+            try {
+                const formData = new FormData(this);
+                const response = await fetch('/create_order', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentOrderId = data.order_id;
+                    document.getElementById('qrImage').src = data.qr_url;
+                    document.getElementById('orderId').textContent = data.order_id;
+                    document.getElementById('expiresAt').textContent = data.expires_at;
+                    document.getElementById('checkoutLink').href = data.checkout_url;
+                    document.getElementById('qrContainer').classList.add('show');
+                    document.getElementById('chatidSection').classList.remove('show');
+                    startStatusCheck(data.order_id);
+                } else {
+                    showFlash('error', '❌ ' + (data.error || 'Failed to create order'));
+                }
+            } catch (error) {
+                showFlash('error', '❌ Network error: ' + error.message);
+            }
+            
+            loader.classList.remove('show');
+            payBtn.disabled = false;
+        });
+        
+        function startStatusCheck(orderId) {
+            if (checkInterval) clearInterval(checkInterval);
+            
+            let attempts = 0;
+            const maxAttempts = 60;
+            
+            checkInterval = setInterval(async () => {
+                attempts++;
+                try {
+                    const response = await fetch(`/check_order/${orderId}`);
+                    const data = await response.json();
+                    
+                    if (data.paid) {
+                        clearInterval(checkInterval);
+                        document.getElementById('statusBadge').className = 'status-badge badge-paid';
+                        document.getElementById('statusBadge').textContent = '✅ PAID';
+                        document.getElementById('chatidSection').classList.add('show');
+                        showFlash('success', '✅ Payment successful! Enter your Chat ID.');
+                    } else if (data.expired) {
+                        clearInterval(checkInterval);
+                        document.getElementById('statusBadge').className = 'status-badge badge-expired';
+                        document.getElementById('statusBadge').textContent = '⏰ EXPIRED';
+                        showFlash('error', '⏰ Order expired!');
+                    }
+                    
+                    if (attempts >= maxAttempts) {
+                        clearInterval(checkInterval);
+                    }
+                } catch (error) {
+                    console.error('Status check error:', error);
+                }
+            }, 5000);
+        }
+        
+        document.getElementById('submitChatBtn').addEventListener('click', async function() {
+            const chatId = document.getElementById('chatIdInput').value.trim();
+            const chatResult = document.getElementById('chatResult');
+            
+            if (!chatId) {
+                chatResult.innerHTML = '<span style="color:#dc3545;">❌ Enter your Chat ID</span>';
+                return;
+            }
+            
+            if (!currentOrderId) {
+                chatResult.innerHTML = '<span style="color:#dc3545;">❌ No order found</span>';
+                return;
+            }
+            
+            chatResult.innerHTML = '<span style="color:#4ECDC4;">⏳ Processing...</span>';
+            
+            try {
+                const response = await fetch('/submit_chat_id', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        order_id: currentOrderId,
+                        chat_id: chatId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    chatResult.innerHTML = `<span style="color:#28a745;">✅ ${data.message}</span>`;
+                    document.getElementById('chatidSection').innerHTML = `
+                        <h4 style="color:#28a745;">🎉 Premium Activated!</h4>
+                        <p style="color:#4ECDC4;">${data.emoji} ${data.pack} - ${data.duration}</p>
+                        <p style="font-size:14px; color:#888;">✅ You now have access to private channel!</p>
+                    `;
+                } else {
+                    chatResult.innerHTML = `<span style="color:#dc3545;">❌ ${data.error.replace(/\n/g, '<br>')}</span>`;
+                }
+            } catch (error) {
+                chatResult.innerHTML = `<span style="color:#dc3545;">❌ Error: ${error.message}</span>`;
+            }
+        });
+        
+        function showFlash(type, message) {
+            const flash = document.getElementById('flash');
+            flash.className = 'flash show ' + type;
+            flash.textContent = message;
+            setTimeout(() => flash.classList.remove('show'), 5000);
+        }
+    </script>
+</body>
+</html>
