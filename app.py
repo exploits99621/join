@@ -10,7 +10,7 @@ app.secret_key = "your_secret_key_here_12345"
 
 # ====== YOUR CONFIG - PRIVATE CHANNEL ======
 BOT_TOKEN = "8695639336:AAETQoASFRYYsTUAmIGhuZtyj29jJsjIvRA"
-CHANNEL_LINK = "https://t.me/+MiEwFuylozg0OTJl"  # Sirf link, username nahi
+CHANNEL_LINK = "https://t.me/+vkvNR5O39fEzNDBl"  # Sirf link, username nahi
 CHANNEL_ID = "-1004399953802"  # Private channel ka ID (bot admin hona chahiye)
 FAM_API_KEY = "fam_c2cfc0ecde4d7b33825d8e11a9153765746da845"
 
